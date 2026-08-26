@@ -1,0 +1,68 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-governance-middleware"
+version = "0.2.0"
+description = "L1/L2 runtime governance middleware SDK for agentic AI systems (Part III of the AI Governance & Runtime Protection Framework)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "AI Security & Governance Practice" }]
+dependencies = [
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "bandit>=1.7",
+    "pre-commit>=3.7",
+    "types-PyYAML>=6.0",
+]
+# Only needed to run RedisCircuitBreakerBackend against a real Redis at L2;
+# the default InMemoryCircuitBreakerBackend and all tests need none of this.
+redis = ["redis>=5.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aimw"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "docker: tests that require a working local Docker daemon (opt-in, not run by default)",
+]
+addopts = "-m 'not docker'"
+
+[tool.coverage.run]
+source = ["src/aimw"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S"]
+# S101: assert is fine in tests; excluded per-file below.
+[tool.ruff.lint.per-file-ignores]
+# S101: assert is fine in tests. S106: literal bearer tokens/call_ids in
+# test/demo fixtures are not secrets, just fixture data.
+"tests/**" = ["S101", "S106"]
+"examples/**" = ["S101", "S106"]
+
+[tool.mypy]
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+strict = true
+exclude = ["tests/"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "examples"]

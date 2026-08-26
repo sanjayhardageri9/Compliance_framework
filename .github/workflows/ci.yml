@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  # Hermetic by default: CI runners may not have a Docker daemon, so the
+  # test suite (and any tooling that reads Settings) defaults to the
+  # non-isolated in-process sandbox stub, not the real Docker backend.
+  AIMW_SANDBOX_MODE: subprocess
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: mypy src/aimw --strict
+      - run: bandit -r src/aimw -c pyproject.toml
+      - run: pytest -q --cov=aimw --cov-report=term-missing

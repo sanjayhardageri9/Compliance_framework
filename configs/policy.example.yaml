@@ -1,0 +1,45 @@
+# Example L1 static policy rule set.
+#
+# Mirrors the five-layer permission hierarchy from the framework document's
+# OPA Rego reference (Section 15.2): identity validity, tool-level access,
+# function-level access, parameter deny-patterns / role gates, rate limits.
+
+identity_required_fields:
+  - user_id
+  - agent_id
+  - roles
+
+allowed_tools:
+  - search_tool
+  - sql_tool
+  - deploy_tool
+
+rate_limit_per_session: 50
+
+tools:
+  search_tool:
+    tool_name: search_tool
+    allowed_functions:
+      - query
+
+  sql_tool:
+    tool_name: sql_tool
+    allowed_functions:
+      - ExecuteReadOnlyQuery
+      - UpdateCustomerRecord
+    parameter_deny_patterns:
+      query:
+        - "(?i)(DROP|DELETE|TRUNCATE|ALTER)"
+
+  deploy_tool:
+    tool_name: deploy_tool
+    allowed_functions:
+      - deploy
+    visible_to_roles:
+      - DeployEngineer
+      - ProductionAdmin
+    requires_role_for:
+      "environment=production":
+        - ProductionAdmin
+    requires_approval_functions:
+      - deploy
