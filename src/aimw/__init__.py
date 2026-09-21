@@ -8,6 +8,7 @@ policy, guardrails, sandboxing, and tamper-evident audit logging.
 from aimw.audit.dlp import DLPClassification, DLPClassifier, SensitivityTier
 from aimw.audit.siem import BaseAuditSink, LocalSiemForwarder
 from aimw.audit.worm_log import ChainVerificationResult, HashChainedJSONLLogger
+from aimw.factory import make_audit_log, make_sandbox
 from aimw.gateway.shim import FakeLLMClient, LiteLLMGatewayShim, ProposedToolCall
 from aimw.guardrails.regex_pii import RegexPIIGuardrail
 from aimw.guardrails.semantic import SemanticGuardrail
@@ -83,5 +84,7 @@ __all__ = [
     "__version__",
     "connect_policy_db",
     "load_ruleset",
+    "make_audit_log",
+    "make_sandbox",
     "seed_example_policy_db",
 ]
