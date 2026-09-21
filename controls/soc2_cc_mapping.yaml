@@ -1,0 +1,56 @@
+# Sample SOC 2 Trust Services Criteria mapping for aimw runtime signals.
+# Illustrative only — not a complete compliance program.
+# Signals are emitted by GovernancePipeline / ToolCallInterceptor / audit path.
+
+version: "0.1-sample"
+framework: SOC2-TSC
+notes: >
+  Map runtime governance signals to Common Criteria (CC) controls.
+  Evidence is produced via Phase 3 exporter (JSONL audit + chain verify).
+
+signals:
+  deny:
+    description: Policy engine denied a tool call (allow=false / deny decision)
+    controls:
+      - id: CC6.1
+        name: Logical access security software
+        rationale: Deny enforces least-privilege on agent tool use
+      - id: CC6.3
+        name: Access request / authorization
+        rationale: Unauthorized tool invocations are blocked at runtime
+      - id: CC7.2
+        name: System monitoring
+        rationale: Deny events are audit-logged for detection/response
+
+  hitl:
+    description: Human-in-the-loop approval required / resolved
+    controls:
+      - id: CC6.2
+        name: Prior authorization for access
+        rationale: Elevated actions require human approval before execute
+      - id: CC5.2
+        name: COSO control activities
+        rationale: Dual-control for high-risk agent actions
+
+  worm_verify:
+    description: Hash-chain verification of audit log (verify_chain)
+    controls:
+      - id: CC7.1
+        name: Detection of changes
+        rationale: Tamper-evident chain detects audit alteration
+      - id: CC7.3
+        name: Evaluation of security events
+        rationale: Broken chain is a security event requiring investigation
+      - id: A1.2
+        name: Availability recovery / backups (illustrative)
+        rationale: Immutable/WORM upgrade path preserves audit durability
+
+  identity_fail:
+    description: BaseIdentityVerifier returned false / authn failure
+    controls:
+      - id: CC6.1
+        name: Logical access security software
+        rationale: Failed identity checks block pipeline entry
+      - id: CC6.6
+        name: External party credentials / boundaries
+        rationale: Invalid tokens from agents/users are rejected fail-closed

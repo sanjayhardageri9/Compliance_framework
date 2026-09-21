@@ -1,0 +1,49 @@
+# Sample NIST AI RMF (AI 100-1) mapping for aimw runtime signals.
+# Illustrative only — aligns selected Govern/Map/Measure/Manage functions.
+
+version: "0.1-sample"
+framework: NIST-AI-RMF-1.0
+notes: >
+  Runtime signals from aimw middleware mapped to example AI RMF outcomes.
+  Use with Phase 3 evidence exporter for auditor packages.
+
+signals:
+  deny:
+    description: Policy deny of proposed tool call
+    functions:
+      - id: GOVERN-1.2
+        rationale: Accountability for AI system outcomes via enforced policy
+      - id: MAP-1.1
+        rationale: Context of use includes restricted tools/actions
+      - id: MANAGE-1.1
+        rationale: Risk treatments applied at inference/tool time
+
+  hitl:
+    description: Human approval gate before sandbox execute
+    functions:
+      - id: GOVERN-2.1
+        rationale: Roles and responsibilities include human oversight
+      - id: MEASURE-2.3
+        rationale: Human review of high-impact decisions
+      - id: MANAGE-4.1
+        rationale: Incident/response style escalation for risky calls
+
+  worm_verify:
+    description: Tamper-evident / immutable audit verification
+    functions:
+      - id: GOVERN-1.1
+        rationale: Legal/compliance documentation via durable evidence
+      - id: MEASURE-1.1
+        rationale: Measurement of system integrity of audit trail
+      - id: MANAGE-2.4
+        rationale: Monitoring for unauthorized modification of records
+
+  identity_fail:
+    description: Identity verification failure at gateway/pipeline
+    functions:
+      - id: GOVERN-1.3
+        rationale: Access control policies for AI actors
+      - id: MAP-2.3
+        rationale: Knowledge of who/what is operating the system
+      - id: MANAGE-2.2
+        rationale: Respond to unauthorized use attempts

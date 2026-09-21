@@ -1,0 +1,25 @@
+# Snippet to merge into the main aimw pyproject.toml
+# (NOT a standalone project file — design artifact only)
+
+[project.optional-dependencies]
+# Existing extras (illustrative):
+#   dev = [...]
+#   redis = ["redis>=5.0"]
+sidecar = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "prometheus-client>=0.20",
+]
+
+# Future (Phase 2) — keep separate from sidecar:
+# enterprise = [
+#     "PyJWT[crypto]>=2.8",
+#     "httpx>=0.27",
+#     "presidio-analyzer>=2.2",
+#     "e2b-code-interpreter>=0.0.10",
+#     "redis>=5.0",
+# ]
+
+# Entrypoint sketch (when merged):
+# [project.scripts]
+# aimw-sidecar = "aimw_sidecar.app:main"

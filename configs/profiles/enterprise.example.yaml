@@ -1,0 +1,50 @@
+# Example enterprise profile — class names to wire (NOT PRODUCTION defaults).
+# Hermetic L1/L2 classes remain the SDK default. Copy and customize; do not
+# commit secrets. Requires aimw[enterprise] once adapters are implemented.
+
+profile: enterprise
+maturity: L3
+warning: "Phase 2 stubs only — do not enable in production until adapters land"
+
+identity:
+  class: aimw.identity.oidc_jwt.OidcJwtVerifier
+  # fallback_hermetic: aimw.identity.session_token.SessionTokenIssuer
+  options:
+    issuer: "https://login.example.com/"
+    audience: "aimw-governance"
+    jwks_uri: "https://login.example.com/.well-known/jwks.json"
+
+policy:
+  class: aimw.policy.opa_engine.OpaEngine
+  # fallback_hermetic: aimw.policy.db_engine.DbBackedPolicyEngine
+  options:
+    opa_url: "http://opa:8181"
+    policy_package: "aimw/authz"
+
+pii:
+  # Future Presidio adapter (ADR-002 step 3) — name reserved
+  class: aimw.guardrails.presidio.PresidioPIIGuardrail  # Placeholder — not stubbed yet
+  fallback_hermetic: aimw.guardrails.regex_pii.RegexPIIGuardrail
+
+sandbox:
+  class: aimw.sandbox.e2b_sandbox.E2BSandbox
+  # fallback_hermetic: aimw.sandbox.docker_sandbox.RestrictedDockerSandbox
+  options:
+    template_id: "aimw-default"
+    timeout_s: 60
+
+audit:
+  local_logger: aimw.audit.worm_log.HashChainedJSONLLogger
+  # Future immutable backend (ADR-002 step 5)
+  immutable_backend: aimw.audit.immutable_s3.S3ObjectLockSink  # Placeholder
+  sinks: []
+
+circuit_breaker:
+  class: aimw.reliability.circuit_breaker.RedisCircuitBreakerBackend
+  # fallback_hermetic: aimw.reliability.circuit_breaker.InMemoryCircuitBreakerBackend
+  options:
+    redis_url: "redis://redis:6379/0"
+
+pipeline:
+  class: aimw.pipeline.GovernancePipeline
+  interceptor: aimw.interceptor.ToolCallInterceptor
