@@ -37,9 +37,19 @@ from aimw.sandbox.base import BaseSandbox, SandboxResult
 from aimw.sandbox.docker_sandbox import DockerSandbox, RestrictedDockerSandbox
 from aimw.sandbox.subprocess_sandbox import SubprocessSandbox
 
+from aimw.identity.oidc_jwt import HermeticJWTIdentityVerifier
+from aimw.policy.opa_engine import OpaCompatiblePolicyEngine, RegoLitePolicyEngine
+from aimw.sandbox.e2b_sandbox import HermeticIsolatedSandbox
+from aimw.evidence.exporter import export_evidence_pack
+
 __version__ = "0.2.0"
 
 __all__ = [
+    "export_evidence_pack",
+    "HermeticIsolatedSandbox",
+    "RegoLitePolicyEngine",
+    "OpaCompatiblePolicyEngine",
+    "HermeticJWTIdentityVerifier",
     "ApprovalCallback",
     "BaseAuditSink",
     "BaseCircuitBreakerBackend",

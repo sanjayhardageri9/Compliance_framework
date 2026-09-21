@@ -37,9 +37,10 @@ dev = [
 # Only needed to run RedisCircuitBreakerBackend against a real Redis at L2;
 # the default InMemoryCircuitBreakerBackend and all tests need none of this.
 redis = ["redis>=5.0"]
+sidecar = ["fastapi>=0.110", "uvicorn>=0.27", "httpx>=0.27"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/aimw"]
+packages = ["src/aimw", "src/aimw_sidecar"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
