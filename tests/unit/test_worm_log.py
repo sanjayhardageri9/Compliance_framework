@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
+from aimw.audit.errors import AuditTamperError
 from aimw.audit.worm_log import HashChainedJSONLLogger, verify_chain
 from aimw.models import PolicyDecision, ToolRequest
 
@@ -47,6 +50,69 @@ def test_tampering_is_detected_at_correct_index(tmp_path, context_factory):
     result = verify_chain(path)
     assert result.valid is False
     assert result.first_broken_index == 2
+
+
+def test_corrupt_json_line_is_detected(tmp_path, context_factory):
+    path = tmp_path / "audit.jsonl"
+    logger = HashChainedJSONLLogger(path)
+    ctx = context_factory()
+    logger.log_call(ctx, _req("call-0"), PolicyDecision(allowed=True, reason="ok"))
+    logger.log_call(ctx, _req("call-1"), PolicyDecision(allowed=True, reason="ok"))
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    lines[1] = "{not-valid-json"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    result = verify_chain(path)
+    assert result.valid is False
+    assert result.first_broken_index == 1
+    assert result.record_count == 1
+
+
+def test_truncated_last_line_is_detected(tmp_path, context_factory):
+    path = tmp_path / "audit.jsonl"
+    logger = HashChainedJSONLLogger(path)
+    ctx = context_factory()
+    logger.log_call(ctx, _req("call-0"), PolicyDecision(allowed=True, reason="ok"))
+    logger.log_call(ctx, _req("call-1"), PolicyDecision(allowed=True, reason="ok"))
+
+    raw = path.read_text(encoding="utf-8")
+    # Truncate mid-JSON on the final record (no trailing newline).
+    path.write_text(raw[:-12], encoding="utf-8")
+
+    result = verify_chain(path)
+    assert result.valid is False
+    assert result.first_broken_index == 1
+    assert result.record_count == 1
+
+
+def test_strict_verify_raises_audit_tamper_error_on_break(tmp_path, context_factory):
+    path = tmp_path / "audit.jsonl"
+    logger = HashChainedJSONLLogger(path)
+    ctx = context_factory()
+    logger.log_call(ctx, _req("call-0"), PolicyDecision(allowed=True, reason="ok"))
+    logger.log_call(ctx, _req("call-1"), PolicyDecision(allowed=True, reason="ok"))
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    lines[1] = "{broken"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    with pytest.raises(AuditTamperError) as exc_info:
+        verify_chain(path, strict=True)
+    assert exc_info.value.broken_index == 1
+
+    with pytest.raises(AuditTamperError):
+        logger.verify(strict=True)
+
+
+def test_strict_verify_clean_chain_returns_valid(tmp_path, context_factory):
+    path = tmp_path / "audit.jsonl"
+    logger = HashChainedJSONLLogger(path)
+    ctx = context_factory()
+    logger.log_call(ctx, _req("call-0"), PolicyDecision(allowed=True, reason="ok"))
+    result = verify_chain(path, strict=True)
+    assert result.valid is True
+    assert result.record_count == 1
 
 
 def test_redact_parameters_hashes_values_by_default(tmp_path, context_factory):

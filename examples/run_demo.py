@@ -17,16 +17,18 @@ import json
 import tempfile
 from pathlib import Path
 
-from aimw.audit.worm_log import HashChainedJSONLLogger, verify_chain
+from aimw.audit.worm_log import verify_chain
+from aimw.config import Settings
+from aimw.factory import make_audit_log, make_sandbox
 from aimw.gateway.shim import FakeLLMClient, LiteLLMGatewayShim, ProposedToolCall
 from aimw.guardrails.regex_pii import RegexPIIGuardrail
 from aimw.hitl.approval import InMemoryApprovalQueue
+from aimw.identity.static_bearer import StaticBearerTokenVerifier
 from aimw.interceptor import ToolCallInterceptor
 from aimw.models import ExecutionContext
 from aimw.pipeline import GovernancePipeline
 from aimw.policy.rules import load_ruleset
 from aimw.policy.static_engine import StaticPolicyEngine
-from aimw.sandbox.subprocess_sandbox import SubprocessSandbox
 
 POLICY_PATH = Path(__file__).parent.parent / "configs" / "policy.example.yaml"
 
@@ -43,23 +45,26 @@ def show_result(label: str, result) -> None:
 
 
 async def main() -> None:
+    settings = Settings()
     audit_dir = Path(tempfile.mkdtemp(prefix="aimw_demo_"))
     audit_path = audit_dir / "audit.jsonl"
     print(f"Audit log: {audit_path}")
 
     ruleset = load_ruleset(POLICY_PATH)
-    audit_log = HashChainedJSONLLogger(audit_path)
+    audit_log = make_audit_log(audit_path, settings)
     approvals = InMemoryApprovalQueue()
 
     def make_pipeline() -> GovernancePipeline:
         interceptor = ToolCallInterceptor(
             policy_engine=StaticPolicyEngine(ruleset),
-            sandbox=SubprocessSandbox(),
+            sandbox=make_sandbox(settings),
             audit_log=audit_log,
             approval_callback=approvals,
         )
         return GovernancePipeline(
-            gateway=LiteLLMGatewayShim(),
+            gateway=LiteLLMGatewayShim(
+                identity_verifier=StaticBearerTokenVerifier(allow_unconfigured=True)
+            ),
             guardrail=RegexPIIGuardrail(),
             llm_client=FakeLLMClient(),
             interceptor=interceptor,

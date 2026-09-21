@@ -8,6 +8,7 @@ policy, guardrails, sandboxing, and tamper-evident audit logging.
 from aimw.audit.dlp import DLPClassification, DLPClassifier, SensitivityTier
 from aimw.audit.siem import BaseAuditSink, LocalSiemForwarder
 from aimw.audit.worm_log import ChainVerificationResult, HashChainedJSONLLogger
+from aimw.factory import make_audit_log, make_sandbox
 from aimw.gateway.shim import FakeLLMClient, LiteLLMGatewayShim, ProposedToolCall
 from aimw.guardrails.regex_pii import RegexPIIGuardrail
 from aimw.guardrails.semantic import SemanticGuardrail
@@ -36,9 +37,19 @@ from aimw.sandbox.base import BaseSandbox, SandboxResult
 from aimw.sandbox.docker_sandbox import DockerSandbox, RestrictedDockerSandbox
 from aimw.sandbox.subprocess_sandbox import SubprocessSandbox
 
+from aimw.identity.oidc_jwt import HermeticJWTIdentityVerifier
+from aimw.policy.opa_engine import OpaCompatiblePolicyEngine, RegoLitePolicyEngine
+from aimw.sandbox.e2b_sandbox import HermeticIsolatedSandbox
+from aimw.evidence.exporter import export_evidence_pack
+
 __version__ = "0.2.0"
 
 __all__ = [
+    "export_evidence_pack",
+    "HermeticIsolatedSandbox",
+    "RegoLitePolicyEngine",
+    "OpaCompatiblePolicyEngine",
+    "HermeticJWTIdentityVerifier",
     "ApprovalCallback",
     "BaseAuditSink",
     "BaseCircuitBreakerBackend",
@@ -83,5 +94,7 @@ __all__ = [
     "__version__",
     "connect_policy_db",
     "load_ruleset",
+    "make_audit_log",
+    "make_sandbox",
     "seed_example_policy_db",
 ]
