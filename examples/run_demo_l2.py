@@ -20,7 +20,9 @@ from pathlib import Path
 
 from aimw.audit.dlp import DLPClassifier
 from aimw.audit.siem import LocalSiemForwarder
-from aimw.audit.worm_log import HashChainedJSONLLogger, verify_chain
+from aimw.audit.worm_log import verify_chain
+from aimw.config import Settings
+from aimw.factory import make_audit_log, make_sandbox
 from aimw.gateway.shim import FakeLLMClient, LiteLLMGatewayShim, ProposedToolCall
 from aimw.guardrails.regex_pii import RegexPIIGuardrail
 from aimw.guardrails.semantic import SemanticGuardrail
@@ -31,7 +33,6 @@ from aimw.pipeline import GovernancePipeline
 from aimw.policy.db_engine import DbBackedPolicyEngine
 from aimw.policy.db_rules import DbRuleStore, connect, seed_example
 from aimw.reliability.circuit_breaker import CircuitBreaker, InMemoryCircuitBreakerBackend
-from aimw.sandbox.subprocess_sandbox import SubprocessSandbox
 
 
 def banner(title: str) -> None:
@@ -47,6 +48,7 @@ def show_result(label: str, result) -> None:
 
 
 async def main() -> None:
+    settings = Settings()
     audit_dir = Path(tempfile.mkdtemp(prefix="aimw_l2_demo_"))
     audit_path = audit_dir / "audit.jsonl"
     print(f"Audit log: {audit_path}")
@@ -56,7 +58,7 @@ async def main() -> None:
     store = DbRuleStore(conn)
 
     siem = LocalSiemForwarder()
-    audit_log = HashChainedJSONLLogger(audit_path, sinks=[siem])
+    audit_log = make_audit_log(audit_path, settings, sinks=[siem])
     breaker = CircuitBreaker(InMemoryCircuitBreakerBackend(min_samples=2, failure_threshold=0.5))
     issuer = SessionTokenIssuer(secret=b"demo-secret-do-not-use-in-prod")
     dlp = DLPClassifier()
@@ -64,7 +66,7 @@ async def main() -> None:
     def make_pipeline() -> GovernancePipeline:
         interceptor = ToolCallInterceptor(
             policy_engine=DbBackedPolicyEngine(store),
-            sandbox=SubprocessSandbox(),
+            sandbox=make_sandbox(settings),
             audit_log=audit_log,
             circuit_breaker=breaker,
         )

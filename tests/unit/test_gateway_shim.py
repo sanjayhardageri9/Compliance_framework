@@ -7,7 +7,7 @@ from aimw.identity.session_token import SessionTokenIssuer
 from aimw.identity.static_bearer import StaticBearerTokenVerifier
 
 
-def test_default_gateway_is_permissive(context_factory):
+def test_default_gateway_allows_unconfigured_static_bearer(context_factory):
     gateway = LiteLLMGatewayShim()
     result = gateway.handle_inbound("hello", context_factory(), bearer_token="anything")
     assert result == "hello"

@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 env:
   # Hermetic by default: CI runners may not have a Docker daemon, so the
   # test suite (and any tooling that reads Settings) defaults to the
@@ -25,4 +28,6 @@ jobs:
       - run: ruff check .
       - run: mypy src/aimw --strict
       - run: bandit -r src/aimw -c pyproject.toml
-      - run: pytest -q --cov=aimw --cov-report=term-missing
+      - name: Dependency audit
+        run: pip-audit
+      - run: pytest -q --cov=aimw --cov-report=term-missing --cov-fail-under=80

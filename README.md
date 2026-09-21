@@ -33,14 +33,14 @@ User / Context
 
 ## Maturity tiers
 
-| Dimension     | L1 "Pragmatic Lite" (this repo)                            | L2 "Growth Tier" (this repo)                                  |
-|---------------|-------------------------------------------------------------|-----------------------------------------------------------------|
-| Gateway       | `LiteLLMGatewayShim` — in-process rate limit                | same shim, pluggable identity + `SemanticGuardrail` layer        |
-| PII detection | `RegexPIIGuardrail` — regex masking, stand-in for Presidio  | + `DLPClassifier` — sensitivity tiering (LOW/MEDIUM/RESTRICTED) |
-| Policy engine | `StaticPolicyEngine` — YAML-declared allow/deny rules       | `DbBackedPolicyEngine` — SQLite-backed, live-updatable RBAC     |
-| Identity      | `StaticBearerTokenVerifier` — single deployment-wide token  | `SessionTokenIssuer` — HMAC-signed, session+agent-scoped, expiring |
-| Reliability   | token caps & sandbox timeouts only                          | `CircuitBreaker` — trips per (agent, tool) after a failure-rate threshold |
-| Sandboxing    | `SubprocessSandbox` (default stub) or `DockerSandbox`       | `RestrictedDockerSandbox` — non-root, read-only rootfs, all caps dropped |
+| Dimension     | L1 "Pragmatic Lite" (this repo)                             | L2 "Growth Tier" (this repo)                                                |
+|---------------|-------------------------------------------------------------|-----------------------------------------------------------------------------|
+| Gateway       | `LiteLLMGatewayShim` — in-process rate limit                | same shim, pluggable identity + `SemanticGuardrail` layer                   |
+| PII detection | `RegexPIIGuardrail` — regex masking, stand-in for Presidio  | + `DLPClassifier` — sensitivity tiering (LOW/MEDIUM/RESTRICTED)             |
+| Policy engine | `StaticPolicyEngine` — YAML-declared allow/deny rules       | `DbBackedPolicyEngine` — SQLite-backed, live-updatable RBAC                 |
+| Identity      | `StaticBearerTokenVerifier` — single deployment-wide token  | `SessionTokenIssuer` — HMAC-signed, session+agent-scoped, expiring          |
+| Reliability   | token caps & sandbox timeouts only                          | `CircuitBreaker` — trips per (agent, tool) after a failure-rate threshold   |
+| Sandboxing    | `SubprocessSandbox` (default stub) or `DockerSandbox`       | `RestrictedDockerSandbox` — non-root, read-only rootfs, all caps dropped    |
 | Audit         | `HashChainedJSONLLogger` — local hash-chained JSONL         | + `BaseAuditSink` forwarding (`LocalSiemForwarder` stand-in for Datadog/Elastic) |
 
 Every concrete class implements one of the abstract interfaces in
@@ -96,6 +96,7 @@ pytest -q -m docker             # opt-in: also exercises DockerSandbox / Restric
 mypy src/aimw --strict
 ruff check .
 bandit -r src/aimw -c pyproject.toml
+pip-audit                       # dependency vulnerability scan (dev extra)
 ```
 
 `RedisCircuitBreakerBackend`'s logic is covered by tests against an
@@ -122,6 +123,37 @@ Global RBAC layer; a paraphrased prompt-injection attempt caught by the
 semantic guardrail where an exact regex would miss it; DLP sensitivity
 classification of masked PII; and a circuit breaker tripping after
 repeated sandbox failures, denying the third call before policy even runs.
+
+## Security notes
+
+### Docker command RCE footgun
+
+`DockerSandbox` / `RestrictedDockerSandbox` accept
+`request.parameters["command"]` as an argv list that is executed inside the
+container. That is a privileged surface: a caller (or a compromised policy
+path) that can put arbitrary argv into `command` can run anything the image
+allows. Phase 0 hardens this fail-closed:
+
+- Newlines/NULs are rejected in every argv part. If `argv[0]` is a known
+  shell (`bash`, `sh`, …), classic shell metacharacters (`;|&\`$<>`) are
+  also rejected in the remaining args — while still allowing `;` inside
+  `python -c` scripts when `python` is allowlisted.
+- The sandbox requires an explicit `allowed_commands` set (argv[0]
+  allowlist). Construction without an allowlist rejects all commands unless
+  you pass `allow_unlisted=True` (trusted local demos only).
+- Prefer declaring the allowlist from policy when wiring the sandbox
+  (`make_sandbox(..., allowed_commands={...})`). Real daemon tests remain
+  opt-in via `pytest -m docker`.
+
+### Fail-closed identity migration
+
+`StaticBearerTokenVerifier()` with an empty token set now **rejects** all
+credentials by default. Demos and the gateway shim pass
+`allow_unconfigured=True` explicitly. Production callers should use
+`StaticBearerTokenVerifier.for_production({"..."})`, which refuses an empty
+allow-set at construction. Token compares use SHA-256 digests +
+`hmac.compare_digest`. `SessionTokenIssuer.issue()` rejects `session_id` /
+`agent_id` values containing `.` (reserved as the token field separator).
 
 ## Out of scope for this build
 

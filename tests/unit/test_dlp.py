@@ -20,10 +20,22 @@ def test_email_is_medium_tier():
     assert result.tier == SensitivityTier.MEDIUM
 
 
+def test_phone_is_medium_tier():
+    result = DLPClassifier().classify("Call 555-123-4567")
+    assert result.tier == SensitivityTier.MEDIUM
+    assert "phone" in result.categories
+
+
 def test_ssn_is_restricted_tier():
     result = DLPClassifier().classify("SSN: 123-45-6789")
     assert result.tier == SensitivityTier.RESTRICTED
     assert "ssn" in result.categories
+
+
+def test_credit_card_is_restricted_tier():
+    result = DLPClassifier().classify("Card 4111 1111 1111 1111")
+    assert result.tier == SensitivityTier.RESTRICTED
+    assert "credit_card" in result.categories
 
 
 def test_mixed_content_takes_highest_tier():

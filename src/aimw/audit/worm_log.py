@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from aimw.audit.errors import AuditTamperError
 from aimw.audit.models import AuditRecord, RedactedContext, RedactedRequest
 from aimw.audit.siem import BaseAuditSink, forward_best_effort
 from aimw.models import ExecutionContext, PolicyDecision, ToolRequest
@@ -45,15 +46,21 @@ class ChainVerificationResult:
     first_broken_index: int | None = None
 
 
-def verify_chain(path: str | Path) -> ChainVerificationResult:
+def verify_chain(path: str | Path, *, strict: bool = False) -> ChainVerificationResult:
     """Replay a log file and confirm every record's hash matches its content.
 
     Pure function over the file on disk - does not depend on any logger
     instance, so an independent auditor can validate a log it didn't write.
+
+    Corrupt JSON lines and truncated trailing lines are treated as chain
+    breaks (``valid=False``) rather than raising parse errors. When
+    ``strict=True``, an invalid chain raises ``AuditTamperError`` instead of
+    returning a result (clean/valid chains still return normally).
     """
     file_path = Path(path)
     if not file_path.exists() or file_path.stat().st_size == 0:
-        return ChainVerificationResult(valid=True, record_count=0)
+        result = ChainVerificationResult(valid=True, record_count=0)
+        return result
 
     prev_hash = GENESIS_HASH
     count = 0
@@ -62,12 +69,25 @@ def verify_chain(path: str | Path) -> ChainVerificationResult:
             line = line.strip()
             if not line:
                 continue
-            record = AuditRecord.model_validate_json(line)
-            expected_hash = _compute_record_hash(prev_hash, record)
-            if record.prev_hash != prev_hash or record.record_hash != expected_hash:
-                return ChainVerificationResult(
+            try:
+                record = AuditRecord.model_validate_json(line)
+            except Exception:  # noqa: BLE001 - corrupt/truncated line = chain break
+                result = ChainVerificationResult(
                     valid=False, record_count=count, first_broken_index=index
                 )
+                if strict:
+                    raise AuditTamperError(
+                        index, f"corrupt or truncated audit record at index {index}"
+                    ) from None
+                return result
+            expected_hash = _compute_record_hash(prev_hash, record)
+            if record.prev_hash != prev_hash or record.record_hash != expected_hash:
+                result = ChainVerificationResult(
+                    valid=False, record_count=count, first_broken_index=index
+                )
+                if strict:
+                    raise AuditTamperError(index)
+                return result
             prev_hash = record.record_hash
             count += 1
     return ChainVerificationResult(valid=True, record_count=count)
@@ -147,5 +167,5 @@ class HashChainedJSONLLogger:
         )
         return self.append(record)
 
-    def verify(self) -> ChainVerificationResult:
-        return verify_chain(self._path)
+    def verify(self, *, strict: bool = False) -> ChainVerificationResult:
+        return verify_chain(self._path, strict=strict)

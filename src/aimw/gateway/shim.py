@@ -33,7 +33,11 @@ class LiteLLMGatewayShim:
     compound identity, without this class changing.
     """
 
-    identity_verifier: BaseIdentityVerifier = field(default_factory=StaticBearerTokenVerifier)
+    # Explicit demo/test default: unconfigured static bearer remains permissive.
+    # Production callers should pass StaticBearerTokenVerifier.for_production({...}).
+    identity_verifier: BaseIdentityVerifier = field(
+        default_factory=lambda: StaticBearerTokenVerifier(allow_unconfigured=True)
+    )
     rate_limit_per_minute: int = 100
     _call_counts: dict[str, int] = field(default_factory=lambda: defaultdict(int))
 

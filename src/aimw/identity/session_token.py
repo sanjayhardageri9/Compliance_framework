@@ -40,6 +40,12 @@ class SessionTokenIssuer(BaseIdentityVerifier):
         self._ttl_seconds = ttl_seconds
 
     def issue(self, context: ExecutionContext, now: float | None = None) -> str:
+        # Token wire format is dotted; '.' inside IDs makes split(".", 3) ambiguous.
+        if "." in context.session_id or "." in context.agent_id:
+            raise ValueError(
+                "session_id and agent_id must not contain '.' "
+                "(reserved as the session-token field separator)"
+            )
         expiry_epoch = int((now if now is not None else time.time()) + self._ttl_seconds)
         signature = _sign(self._secret, context.session_id, context.agent_id, expiry_epoch)
         return f"{context.session_id}.{context.agent_id}.{expiry_epoch}.{signature}"
